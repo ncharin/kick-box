@@ -22,7 +22,9 @@
       "Read(//usr/local/bin/**)",
       "Read(//opt/homebrew/bin/**)",
       "Bash(npx supabase:*)",
-      "Bash(SUPABASE_ACCESS_TOKEN=sbp_44462b985a915b502fc49d7f623483d820c23575 npx supabase:*)"
+      "Bash(SUPABASE_ACCESS_TOKEN=sbp_44462b985a915b502fc49d7f623483d820c23575 npx supabase:*)",
+      "Bash(curl:*)",
+      "Bash(npx tsx:*)"
     ]
   }
 }
