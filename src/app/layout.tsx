@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter, Space_Grotesk } from 'next/font/google'
+import { Navbar } from '@/components/kickbox/Navbar'
 import './globals.css'
 
 const inter = Inter({
@@ -27,7 +28,10 @@ export default function RootLayout({
       lang="fr"
       className={`${inter.variable} ${spaceGrotesk.variable} dark h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <Navbar />
+        <div className="flex-1">{children}</div>
+      </body>
     </html>
   )
 }
