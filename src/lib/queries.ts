@@ -115,3 +115,74 @@ export async function getMatchReviews(matchId: number) {
     .limit(20)
   return data ?? []
 }
+
+// =========================================================
+// Requêtes profil utilisateur
+// =========================================================
+
+export async function getProfileByUsername(username: string) {
+  const supabase = await createClient()
+  const { data } = await supabase.from('profiles').select('*').eq('username', username).single()
+  return data
+}
+
+export async function getDiaryEntries(userId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('diary_entries')
+    .select(
+      `
+      id, watched_on, rating, is_rewatch, created_at,
+      match:matches(
+        id, kickoff, status, home_score, away_score, season, matchday,
+        home_team:teams!matches_home_team_id_fkey(id, name, short_name, logo_url),
+        away_team:teams!matches_away_team_id_fkey(id, name, short_name, logo_url),
+        competition:competitions(id, name)
+      ),
+      review:reviews(id, content, rating)
+    `
+    )
+    .eq('user_id', userId)
+    .order('watched_on', { ascending: false })
+  return data ?? []
+}
+
+export async function getUserReviews(userId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('reviews')
+    .select(
+      `
+      id, content, rating, contains_spoilers, likes_count, created_at,
+      match:matches(
+        id, kickoff, status, home_score, away_score,
+        home_team:teams!matches_home_team_id_fkey(id, name, short_name, logo_url),
+        away_team:teams!matches_away_team_id_fkey(id, name, short_name, logo_url),
+        competition:competitions(id, name)
+      )
+    `
+    )
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  return data ?? []
+}
+
+export async function getWatchlist(userId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('watchlist')
+    .select(
+      `
+      added_at,
+      match:matches(
+        id, kickoff, status, home_score, away_score, season, matchday,
+        home_team:teams!matches_home_team_id_fkey(id, name, short_name, logo_url),
+        away_team:teams!matches_away_team_id_fkey(id, name, short_name, logo_url),
+        competition:competitions(id, name)
+      )
+    `
+    )
+    .eq('user_id', userId)
+    .order('added_at', { ascending: false })
+  return data ?? []
+}
