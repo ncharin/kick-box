@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
-// Log un match (diary_entry + review optionnelle)
 export async function logMatch(formData: {
   matchId: number
   watchedOn: string
@@ -35,35 +34,37 @@ export async function logMatch(formData: {
       .select('id')
       .single()
 
-    if (reviewError) return { error: reviewError.message }
+    if (reviewError) return { error: `Erreur review : ${reviewError.message}` }
     reviewId = review.id
   }
 
-  // Créer l'entrée diary
-  const { error: diaryError } = await supabase.from('diary_entries').upsert(
-    {
+  // Vérifier si une entrée existe déjà (index partiel WHERE is_rewatch = false)
+  const { data: existing } = await supabase
+    .from('diary_entries')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('match_id', matchId)
+    .eq('is_rewatch', false)
+    .single()
+
+  if (existing && !isRewatch) {
+    // Mettre à jour l'entrée existante
+    const { error } = await supabase
+      .from('diary_entries')
+      .update({ watched_on: watchedOn, rating, review_id: reviewId })
+      .eq('id', existing.id)
+    if (error) return { error: `Erreur mise à jour : ${error.message}` }
+  } else {
+    // Nouvelle entrée
+    const { error } = await supabase.from('diary_entries').insert({
       user_id: user.id,
       match_id: matchId,
       watched_on: watchedOn,
       rating,
       review_id: reviewId,
       is_rewatch: isRewatch,
-    },
-    { onConflict: 'user_id,match_id', ignoreDuplicates: false }
-  )
-
-  if (diaryError) {
-    // Si conflit unique index (pas un rewatch, déjà loggé) — on met à jour
-    if (diaryError.code === '23505') {
-      await supabase
-        .from('diary_entries')
-        .update({ watched_on: watchedOn, rating, review_id: reviewId })
-        .eq('user_id', user.id)
-        .eq('match_id', matchId)
-        .eq('is_rewatch', false)
-    } else {
-      return { error: diaryError.message }
-    }
+    })
+    if (error) return { error: `Erreur diary : ${error.message}` }
   }
 
   revalidatePath(`/matches/${matchId}`)
@@ -71,7 +72,6 @@ export async function logMatch(formData: {
   return { success: true }
 }
 
-// Supprimer une entrée diary
 export async function removeFromDiary(matchId: number) {
   const supabase = await createClient()
   const {
@@ -90,7 +90,6 @@ export async function removeFromDiary(matchId: number) {
   return { success: true }
 }
 
-// Supprimer une review
 export async function deleteReview(reviewId: string) {
   const supabase = await createClient()
   const {
@@ -109,7 +108,6 @@ export async function deleteReview(reviewId: string) {
   return { success: true }
 }
 
-// Ajouter / retirer de la watchlist
 export async function toggleWatchlist(matchId: number, currentlyInList: boolean) {
   const supabase = await createClient()
   const {
