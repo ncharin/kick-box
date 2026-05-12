@@ -11,7 +11,18 @@
       "Bash(git commit:*)",
       "Bash(npx shadcn@latest:*)",
       "Bash(npx husky:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Read(//tmp/**)",
+      "Bash(kill 9346)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(kill 9441)",
+      "Bash(brew install:*)",
+      "Bash(/opt/homebrew/bin/brew install:*)",
+      "Read(//usr/local/bin/**)",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(npx supabase:*)",
+      "Bash(SUPABASE_ACCESS_TOKEN=sbp_44462b985a915b502fc49d7f623483d820c23575 npx supabase:*)"
     ]
   }
 }
