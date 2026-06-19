@@ -52,16 +52,14 @@ export class FootballDataProvider implements MatchDataProvider {
       }>
     }>('/competitions')
 
-    return data.competitions
-      .filter((c) => c.plan === 'TIER_ONE')
-      .map((c) => ({
-        apiId: c.id,
-        name: c.name,
-        country: c.area?.name ?? null,
-        logoUrl: c.emblem ?? null,
-        type: 'league' as const,
-        tier: 1,
-      }))
+    return data.competitions.map((c) => ({
+      apiId: c.id,
+      name: c.name,
+      country: c.area?.name ?? null,
+      logoUrl: c.emblem ?? null,
+      type: 'league' as const,
+      tier: 1,
+    }))
   }
 
   async getTeams(competitionCode: string, season: string): Promise<NormalizedTeam[]> {
