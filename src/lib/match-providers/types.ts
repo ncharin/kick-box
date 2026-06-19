@@ -28,6 +28,18 @@ export interface NormalizedMatch {
   status: 'scheduled' | 'live' | 'finished' | 'postponed'
   homeTeamApiId: number
   awayTeamApiId: number
+  homeTeamData?: {
+    name: string
+    shortName: string | null
+    logoUrl: string | null
+    country: string | null
+  }
+  awayTeamData?: {
+    name: string
+    shortName: string | null
+    logoUrl: string | null
+    country: string | null
+  }
   homeScore: number | null
   awayScore: number | null
   homeScoreHt: number | null

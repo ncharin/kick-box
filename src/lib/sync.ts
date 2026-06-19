@@ -131,6 +131,28 @@ async function upsertCompetitions(
 }
 
 async function upsertMatches(supabase: Db, matches: NormalizedMatch[], competitionId: number) {
+  // Upsert les équipes extraites des matchs (évite de dépendre de getTeams)
+  const teamsFromMatches = new Map<
+    number,
+    { name: string; shortName: string | null; logoUrl: string | null; country: string | null }
+  >()
+  for (const m of matches) {
+    if (m.homeTeamData && m.homeTeamApiId) teamsFromMatches.set(m.homeTeamApiId, m.homeTeamData)
+    if (m.awayTeamData && m.awayTeamApiId) teamsFromMatches.set(m.awayTeamApiId, m.awayTeamData)
+  }
+  if (teamsFromMatches.size > 0) {
+    const teamRows = Array.from(teamsFromMatches.entries()).map(([apiId, t]) => ({
+      api_id: apiId,
+      name: t.name,
+      short_name: t.shortName,
+      country: t.country,
+      logo_url: t.logoUrl,
+      type: 'club' as const,
+      founded: null,
+    }))
+    await supabase.from('teams').upsert(teamRows, { onConflict: 'api_id' })
+  }
+
   // Récupérer le mapping api_id → id pour les équipes
   const teamApiIds = [...new Set(matches.flatMap((m) => [m.homeTeamApiId, m.awayTeamApiId]))]
   const { data: teams } = await supabase.from('teams').select('id, api_id').in('api_id', teamApiIds)

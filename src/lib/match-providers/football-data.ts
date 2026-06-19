@@ -119,8 +119,20 @@ interface RawMatch {
   matchday: number | null
   utcDate: string
   status: string
-  homeTeam: { id: number; name?: string }
-  awayTeam: { id: number; name?: string }
+  homeTeam: {
+    id: number
+    name?: string
+    shortName?: string
+    crest?: string
+    area?: { name: string }
+  }
+  awayTeam: {
+    id: number
+    name?: string
+    shortName?: string
+    crest?: string
+    area?: { name: string }
+  }
   score: {
     fullTime: { home: number | null; away: number | null }
     halfTime: { home: number | null; away: number | null }
@@ -165,6 +177,22 @@ function mapRawMatch(m: RawMatch): NormalizedMatch {
     status: mapStatus(m.status),
     homeTeamApiId: m.homeTeam.id,
     awayTeamApiId: m.awayTeam.id,
+    homeTeamData: m.homeTeam.name
+      ? {
+          name: m.homeTeam.name,
+          shortName: m.homeTeam.shortName ?? null,
+          logoUrl: m.homeTeam.crest ?? null,
+          country: m.homeTeam.area?.name ?? null,
+        }
+      : undefined,
+    awayTeamData: m.awayTeam.name
+      ? {
+          name: m.awayTeam.name,
+          shortName: m.awayTeam.shortName ?? null,
+          logoUrl: m.awayTeam.crest ?? null,
+          country: m.awayTeam.area?.name ?? null,
+        }
+      : undefined,
     homeScore: m.score.fullTime.home,
     awayScore: m.score.fullTime.away,
     homeScoreHt: m.score.halfTime.home,
