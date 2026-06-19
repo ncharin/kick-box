@@ -6,12 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 const COMPETITIONS = [
   { code: 'WC', label: 'Coupe du Monde 2026', season: '2026-2027' },
+  { code: 'EC', label: 'Euro', season: '2024-2025' },
+  { code: 'CL', label: 'Champions League', season: '2024-2025' },
   { code: 'FL1', label: 'Ligue 1', season: '2024-2025' },
   { code: 'PL', label: 'Premier League', season: '2024-2025' },
   { code: 'PD', label: 'La Liga', season: '2024-2025' },
   { code: 'BL1', label: 'Bundesliga', season: '2024-2025' },
   { code: 'SA', label: 'Serie A', season: '2024-2025' },
-  { code: 'CL', label: 'Champions League', season: '2024-2025' },
+  { code: 'DED', label: 'Eredivisie (Pays-Bas)', season: '2024-2025' },
+  { code: 'PPL', label: 'Primeira Liga (Portugal)', season: '2024-2025' },
+  { code: 'ELC', label: 'Championship (Angleterre D2)', season: '2024-2025' },
+  { code: 'BSA', label: 'Série A Brésilienne', season: '2024-2025' },
 ]
 
 type Status = 'idle' | 'loading' | 'success' | 'error'
