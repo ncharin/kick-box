@@ -20,7 +20,7 @@ const signupSchema = z.object({
     .string()
     .min(3, 'Minimum 3 caractères')
     .max(24, 'Maximum 24 caractères')
-    .regex(/^[a-z0-9_]+$/, 'Lettres minuscules, chiffres et _ uniquement'),
+    .regex(/^[a-zA-Z0-9_]+$/, 'Lettres, chiffres et _ uniquement'),
 })
 type SignupForm = z.infer<typeof signupSchema>
 
@@ -41,11 +41,13 @@ export default function SignupPage() {
     setLoading(true)
     setError(null)
 
+    const username = data.username.toLowerCase()
+
     // Vérification username unique avant création
     const { data: existing } = await supabase
       .from('profiles')
       .select('id')
-      .eq('username', data.username)
+      .eq('username', username)
       .single()
 
     if (existing) {
@@ -58,7 +60,7 @@ export default function SignupPage() {
       email: data.email,
       password: data.password,
       options: {
-        data: { username: data.username },
+        data: { username },
         emailRedirectTo: `${location.origin}/auth/callback`,
       },
     })
@@ -140,6 +142,9 @@ export default function SignupPage() {
               <Input
                 id="username"
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
                 placeholder="ex: nicolas_foot"
                 {...register('username')}
               />

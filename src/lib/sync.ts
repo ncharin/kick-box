@@ -176,11 +176,46 @@ async function updateMatchScores(supabase: Db, matches: NormalizedMatch[]) {
 }
 
 async function upsertMatchesMinimal(supabase: Db, matches: NormalizedMatch[]) {
-  for (const m of matches) {
-    await supabase
-      .from('matches')
-      .update({ status: m.status, updated_at: new Date().toISOString() })
-      .eq('api_id', m.apiId)
+  if (matches.length === 0) return
+
+  // Résoudre les competition_id
+  const compApiIds = [...new Set(matches.map((m) => m.competitionApiId))]
+  const { data: comps } = await supabase
+    .from('competitions')
+    .select('id, api_id')
+    .in('api_id', compApiIds)
+  const compMap = new Map(
+    (comps ?? []).map((c: { api_id: number; id: number }) => [c.api_id, c.id])
+  )
+
+  // Résoudre les team_id
+  const teamApiIds = [...new Set(matches.flatMap((m) => [m.homeTeamApiId, m.awayTeamApiId]))]
+  const { data: teams } = await supabase.from('teams').select('id, api_id').in('api_id', teamApiIds)
+  const teamMap = new Map(
+    (teams ?? []).map((t: { api_id: number; id: number }) => [t.api_id, t.id])
+  )
+
+  const rows = matches
+    .map((m) => ({
+      api_id: m.apiId,
+      competition_id: compMap.get(m.competitionApiId) ?? null,
+      season: m.season,
+      matchday: m.matchday,
+      kickoff: m.kickoff,
+      status: m.status,
+      home_team_id: teamMap.get(m.homeTeamApiId) ?? null,
+      away_team_id: teamMap.get(m.awayTeamApiId) ?? null,
+      home_score: m.homeScore,
+      away_score: m.awayScore,
+      home_score_ht: m.homeScoreHt,
+      away_score_ht: m.awayScoreHt,
+      venue: m.venue,
+      updated_at: new Date().toISOString(),
+    }))
+    .filter((r) => r.competition_id !== null && r.home_team_id !== null && r.away_team_id !== null)
+
+  if (rows.length > 0) {
+    await supabase.from('matches').upsert(rows, { onConflict: 'api_id' })
   }
 }
 
