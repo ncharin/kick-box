@@ -4,37 +4,6 @@ import type { NormalizedCompetition, NormalizedMatch, NormalizedTeam } from './t
 
 const BASE_URL = 'https://api.football-data.org/v4'
 
-// Correspondance code compétition → type
-const COMPETITION_TYPES: Record<string, NormalizedCompetition['type']> = {
-  PL: 'league',
-  BL1: 'league',
-  SA: 'league',
-  PD: 'league',
-  FL1: 'league',
-  ELC: 'league',
-  DED: 'league',
-  PPL: 'league',
-  BSA: 'league',
-  CL: 'international',
-  EC: 'international',
-  WC: 'international',
-}
-
-const COMPETITION_TIERS: Record<string, number> = {
-  PL: 1,
-  BL1: 1,
-  SA: 1,
-  PD: 1,
-  FL1: 1,
-  DED: 1,
-  PPL: 1,
-  BSA: 1,
-  ELC: 2,
-  CL: 1,
-  EC: 1,
-  WC: 1,
-}
-
 function mapStatus(status: string): NormalizedMatch['status'] {
   const map: Record<string, NormalizedMatch['status']> = {
     SCHEDULED: 'scheduled',
@@ -152,8 +121,8 @@ interface RawMatch {
   matchday: number | null
   utcDate: string
   status: string
-  homeTeam: { id: number }
-  awayTeam: { id: number }
+  homeTeam: { id: number; name?: string }
+  awayTeam: { id: number; name?: string }
   score: {
     fullTime: { home: number | null; away: number | null }
     halfTime: { home: number | null; away: number | null }
@@ -161,10 +130,34 @@ interface RawMatch {
   venue: string | null
   stage: string
   group: string | null
+  referees?: Array<{ name: string; type: string }>
+  goals?: Array<{
+    minute: number
+    injuryTime: number | null
+    type: string
+    team: { id: number }
+    scorer: { name: string } | null
+    assist: { name: string } | null
+  }>
+  bookings?: Array<{
+    minute: number
+    team: { id: number }
+    player: { name: string } | null
+    card: string
+  }>
+  substitutions?: Array<{
+    minute: number
+    team: { id: number }
+    playerOut: { name: string } | null
+    playerIn: { name: string } | null
+  }>
 }
 
 function mapRawMatch(m: RawMatch): NormalizedMatch {
   const matchday = m.matchday ? `Journée ${m.matchday}` : (m.group ?? m.stage ?? null)
+
+  const referee = m.referees?.find((r) => r.type === 'REFEREE')?.name ?? null
+
   return {
     apiId: m.id,
     competitionApiId: m.competition.id,
@@ -179,5 +172,6 @@ function mapRawMatch(m: RawMatch): NormalizedMatch {
     homeScoreHt: m.score.halfTime.home,
     awayScoreHt: m.score.halfTime.away,
     venue: m.venue ?? null,
+    referee,
   }
 }

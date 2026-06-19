@@ -1,5 +1,28 @@
 // Types applicatifs — alignés sur le schéma Supabase
 
+export interface MatchGoal {
+  minute: number
+  injuryTime: number | null
+  type: 'REGULAR' | 'OWN_GOAL' | 'PENALTY'
+  isHome: boolean
+  scorer: string
+  assist: string | null
+}
+
+export interface MatchBooking {
+  minute: number
+  isHome: boolean
+  player: string
+  card: 'YELLOW_CARD' | 'YELLOW_RED_CARD' | 'RED_CARD'
+}
+
+export interface MatchSubstitution {
+  minute: number
+  isHome: boolean
+  playerOut: string
+  playerIn: string
+}
+
 export interface Team {
   id: number
   api_id: number
@@ -36,6 +59,12 @@ export interface Match {
   home_score_ht: number | null
   away_score_ht: number | null
   venue: string | null
+  referee: string | null
+  goals: MatchGoal[]
+  bookings: MatchBooking[]
+  substitutions: MatchSubstitution[]
+  details_fetched_at: string | null
+  api_football_id: number | null
   // Relations jointes
   home_team?: Team | null
   away_team?: Team | null

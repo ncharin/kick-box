@@ -33,4 +33,32 @@ export interface NormalizedMatch {
   homeScoreHt: number | null
   awayScoreHt: number | null
   venue: string | null
+  // Détails optionnels (récupérés à la demande)
+  referee?: string | null
+  goals?: MatchGoal[]
+  bookings?: MatchBooking[]
+  substitutions?: MatchSubstitution[]
+}
+
+export interface MatchGoal {
+  minute: number
+  injuryTime: number | null
+  type: 'REGULAR' | 'OWN_GOAL' | 'PENALTY'
+  isHome: boolean
+  scorer: string
+  assist: string | null
+}
+
+export interface MatchBooking {
+  minute: number
+  isHome: boolean
+  player: string
+  card: 'YELLOW_CARD' | 'YELLOW_RED_CARD' | 'RED_CARD'
+}
+
+export interface MatchSubstitution {
+  minute: number
+  isHome: boolean
+  playerOut: string
+  playerIn: string
 }

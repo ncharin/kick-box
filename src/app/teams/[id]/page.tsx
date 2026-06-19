@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import { getTeam, getTeamMatches } from '@/lib/queries'
 import { TeamBadge } from '@/components/kickbox/TeamBadge'
 import { MatchCard } from '@/components/kickbox/MatchCard'
@@ -8,6 +9,16 @@ export const revalidate = 300
 
 interface Props {
   params: Promise<{ id: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  const team = await getTeam(Number(id))
+  if (!team) return { title: 'Équipe — Kickbox' }
+  return {
+    title: team.name,
+    description: `Matchs de ${team.name}${team.country ? ` (${team.country})` : ''} sur Kickbox`,
+  }
 }
 
 export default async function TeamPage({ params }: Props) {

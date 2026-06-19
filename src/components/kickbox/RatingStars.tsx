@@ -34,7 +34,7 @@ export function RatingStars({ value, onChange, readOnly = false, size = 'md' }: 
         return (
           <span
             key={star}
-            className={`relative select-none ${readOnly ? '' : 'cursor-pointer'}`}
+            className={`relative inline-block select-none ${readOnly ? '' : 'cursor-pointer'}`}
             style={{ width: starSize, height: starSize }}
             onMouseLeave={() => !readOnly && setHovered(null)}
           >

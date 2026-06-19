@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import { getCompetition, getCompetitionMatches } from '@/lib/queries'
 import { MatchCard } from '@/components/kickbox/MatchCard'
 import type { Match } from '@/lib/types'
@@ -8,6 +9,16 @@ export const revalidate = 300
 interface Props {
   params: Promise<{ id: string }>
   searchParams: Promise<{ season?: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  const competition = await getCompetition(Number(id))
+  if (!competition) return { title: 'Compétition — Kickbox' }
+  return {
+    title: competition.name,
+    description: `Tous les matchs de ${competition.name}${competition.country ? ` (${competition.country})` : ''} sur Kickbox`,
+  }
 }
 
 export default async function CompetitionPage({ params, searchParams }: Props) {

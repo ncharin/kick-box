@@ -6,9 +6,10 @@ const MATCH_SELECT = `
   id, api_id, competition_id, season, matchday, kickoff, status,
   home_team_id, away_team_id,
   home_score, away_score, home_score_ht, away_score_ht, venue,
+  referee, goals, bookings, substitutions, details_fetched_at, api_football_id,
   home_team:teams!matches_home_team_id_fkey(id, name, short_name, logo_url, country),
   away_team:teams!matches_away_team_id_fkey(id, name, short_name, logo_url, country),
-  competition:competitions(id, name, country, logo_url, type)
+  competition:competitions(id, api_id, name, country, logo_url, type)
 `
 
 export async function getRecentMatches(limit = 20) {
@@ -85,10 +86,22 @@ export async function getCompetitions() {
 
 export async function searchMatches(q: string, limit = 20) {
   const supabase = await createClient()
+
+  // Supabase ne supporte pas le filtre .or() sur des colonnes jointes.
+  // On cherche d'abord les équipes par nom, puis les matchs par leurs IDs.
+  const { data: teams } = await supabase
+    .from('teams')
+    .select('id')
+    .ilike('name', `%${q}%`)
+    .limit(50)
+
+  const teamIds = (teams ?? []).map((t) => t.id)
+  if (teamIds.length === 0) return []
+
   const { data } = await supabase
     .from('matches')
     .select(MATCH_SELECT)
-    .or(`home_team.name.ilike.%${q}%,away_team.name.ilike.%${q}%`)
+    .or(teamIds.map((id) => `home_team_id.eq.${id},away_team_id.eq.${id}`).join(','))
     .order('kickoff', { ascending: false })
     .limit(limit)
   return data ?? []
@@ -101,6 +114,17 @@ export async function searchTeams(q: string, limit = 10) {
     .select('*')
     .ilike('name', `%${q}%`)
     .order('name')
+    .limit(limit)
+  return data ?? []
+}
+
+export async function searchProfiles(q: string, limit = 10) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, avatar_url, matches_logged_count')
+    .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
+    .order('matches_logged_count', { ascending: false })
     .limit(limit)
   return data ?? []
 }
@@ -126,7 +150,7 @@ export async function getProfileByUsername(username: string) {
   return data
 }
 
-export async function getDiaryEntries(userId: string) {
+export async function getDiaryEntries(userId: string, { limit = 30, offset = 0 } = {}) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('diary_entries')
@@ -144,10 +168,11 @@ export async function getDiaryEntries(userId: string) {
     )
     .eq('user_id', userId)
     .order('watched_on', { ascending: false })
+    .range(offset, offset + limit - 1)
   return data ?? []
 }
 
-export async function getUserReviews(userId: string) {
+export async function getUserReviews(userId: string, { limit = 20, offset = 0 } = {}) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('reviews')
@@ -164,10 +189,11 @@ export async function getUserReviews(userId: string) {
     )
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
   return data ?? []
 }
 
-export async function getWatchlist(userId: string) {
+export async function getWatchlist(userId: string, { limit = 30, offset = 0 } = {}) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('watchlist')
@@ -184,5 +210,218 @@ export async function getWatchlist(userId: string) {
     )
     .eq('user_id', userId)
     .order('added_at', { ascending: false })
+    .range(offset, offset + limit - 1)
   return data ?? []
+}
+
+// =========================================================
+// Requêtes sociales
+// =========================================================
+
+export async function isFollowing(currentUserId: string, targetUserId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('follows')
+    .select('follower_id')
+    .eq('follower_id', currentUserId)
+    .eq('following_id', targetUserId)
+    .single()
+  return !!data
+}
+
+export async function getProfileRecentReviews(userId: string, limit = 4) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('reviews')
+    .select(
+      `
+      id, content, rating, contains_spoilers, created_at,
+      match:matches(
+        id, kickoff, status, home_score, away_score,
+        home_team:teams!matches_home_team_id_fkey(id, name, short_name, logo_url),
+        away_team:teams!matches_away_team_id_fkey(id, name, short_name, logo_url),
+        competition:competitions(id, name)
+      )
+    `
+    )
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  return data ?? []
+}
+
+type MiniProfile = {
+  id: string
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+}
+
+export async function getFollowers(userId: string): Promise<MiniProfile[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('follows')
+    .select('profile:profiles!follows_follower_id_fkey(id, username, display_name, avatar_url)')
+    .eq('following_id', userId)
+    .order('created_at', { ascending: false })
+  return (data ?? [])
+    .map((r) => r.profile as unknown as MiniProfile)
+    .filter((p): p is MiniProfile => !!p)
+}
+
+export async function getFollowing(userId: string): Promise<MiniProfile[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('follows')
+    .select('profile:profiles!follows_following_id_fkey(id, username, display_name, avatar_url)')
+    .eq('follower_id', userId)
+    .order('created_at', { ascending: false })
+  return (data ?? [])
+    .map((r) => r.profile as unknown as MiniProfile)
+    .filter((p): p is MiniProfile => !!p)
+}
+
+export async function getActivityFeed(currentUserId: string, limit = 20) {
+  const supabase = await createClient()
+
+  const { data: followingRows } = await supabase
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', currentUserId)
+
+  const followingIds = (followingRows ?? []).map((r) => r.following_id)
+  if (followingIds.length === 0) return { reviews: [], diary: [] }
+
+  const MATCH_FRAGMENT = `
+    id, kickoff, status, home_score, away_score,
+    home_team:teams!matches_home_team_id_fkey(id, name, short_name, logo_url),
+    away_team:teams!matches_away_team_id_fkey(id, name, short_name, logo_url),
+    competition:competitions(id, name)
+  `
+  const PROFILE_FRAGMENT = `id, username, display_name, avatar_url`
+
+  const [reviewsRes, diaryRes] = await Promise.all([
+    supabase
+      .from('reviews')
+      .select(
+        `id, content, rating, contains_spoilers, likes_count, comments_count, created_at, profile:profiles(${PROFILE_FRAGMENT}), match:matches(${MATCH_FRAGMENT})`
+      )
+      .in('user_id', followingIds)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('diary_entries')
+      .select(
+        `id, watched_on, rating, is_rewatch, created_at, profile:profiles(${PROFILE_FRAGMENT}), match:matches(${MATCH_FRAGMENT})`
+      )
+      .in('user_id', followingIds)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  ])
+
+  return {
+    reviews: reviewsRes.data ?? [],
+    diary: diaryRes.data ?? [],
+  }
+}
+
+export async function getReviewComments(reviewId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('review_comments')
+    .select(
+      `id, content, created_at, user_id, profile:profiles(username, display_name, avatar_url)`
+    )
+    .eq('review_id', reviewId)
+    .order('created_at', { ascending: true })
+  return data ?? []
+}
+
+export async function getTopUsers(limit = 20) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('profiles')
+    .select(
+      'id, username, display_name, avatar_url, matches_logged_count, followers_count, following_count'
+    )
+    .gt('matches_logged_count', 0)
+    .order('matches_logged_count', { ascending: false })
+    .limit(limit)
+  return data ?? []
+}
+
+export async function getNotifications(userId: string, limit = 30) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('notifications')
+    .select(
+      `
+      id, type, read, created_at, review_id, match_id,
+      actor:actor_id(id, username, display_name, avatar_url)
+    `
+    )
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  return data ?? []
+}
+
+export async function getUnreadNotificationsCount(userId: string) {
+  try {
+    const supabase = await createClient()
+    const { count } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('read', false)
+    return count ?? 0
+  } catch {
+    return 0
+  }
+}
+
+export async function getActivityFeedPaginated(currentUserId: string, page = 1, pageSize = 20) {
+  const supabase = await createClient()
+
+  const { data: followingRows } = await supabase
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', currentUserId)
+
+  const followingIds = (followingRows ?? []).map((r) => r.following_id)
+  if (followingIds.length === 0) return { reviews: [], diary: [], hasMore: false }
+
+  const offset = (page - 1) * pageSize
+  const MATCH_FRAGMENT = `
+    id, kickoff, status, home_score, away_score,
+    home_team:teams!matches_home_team_id_fkey(id, name, short_name, logo_url),
+    away_team:teams!matches_away_team_id_fkey(id, name, short_name, logo_url),
+    competition:competitions(id, name)
+  `
+  const PROFILE_FRAGMENT = `id, username, display_name, avatar_url`
+
+  const [reviewsRes, diaryRes] = await Promise.all([
+    supabase
+      .from('reviews')
+      .select(
+        `id, content, rating, contains_spoilers, likes_count, comments_count, created_at, profile:profiles(${PROFILE_FRAGMENT}), match:matches(${MATCH_FRAGMENT})`
+      )
+      .in('user_id', followingIds)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1),
+    supabase
+      .from('diary_entries')
+      .select(
+        `id, watched_on, rating, is_rewatch, created_at, profile:profiles(${PROFILE_FRAGMENT}), match:matches(${MATCH_FRAGMENT})`
+      )
+      .in('user_id', followingIds)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1),
+  ])
+
+  const reviews = reviewsRes.data ?? []
+  const diary = diaryRes.data ?? []
+  const hasMore = reviews.length === pageSize || diary.length === pageSize
+
+  return { reviews, diary, hasMore }
 }

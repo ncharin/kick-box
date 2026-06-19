@@ -1,6 +1,9 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, Space_Grotesk } from 'next/font/google'
 import { Navbar } from '@/components/kickbox/Navbar'
+import { MobileNav } from '@/components/kickbox/MobileNav'
+import { Footer } from '@/components/kickbox/Footer'
+import { CookieBanner } from '@/components/kickbox/CookieBanner'
 import './globals.css'
 
 const inter = Inter({
@@ -13,9 +16,19 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
 })
 
+export const viewport: Viewport = {
+  themeColor: '#09090b',
+}
+
 export const metadata: Metadata = {
-  title: 'Kickbox',
+  title: { default: 'Kickbox', template: '%s — Kickbox' },
   description: 'Le tracker de matchs de football. Note, commente, partage.',
+  icons: { icon: '/favicon.svg', shortcut: '/favicon.svg' },
+  openGraph: {
+    siteName: 'Kickbox',
+    locale: 'fr_FR',
+    type: 'website',
+  },
 }
 
 export default function RootLayout({
@@ -30,7 +43,10 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         <Navbar />
-        <div className="flex-1">{children}</div>
+        <div className="flex-1 pb-14 sm:pb-0">{children}</div>
+        <Footer />
+        <MobileNav />
+        <CookieBanner />
       </body>
     </html>
   )

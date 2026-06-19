@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { MatchCard } from '@/components/kickbox/MatchCard'
 import { TeamBadge } from '@/components/kickbox/TeamBadge'
 import { Input } from '@/components/ui/input'
+import { UserAvatar } from '@/components/kickbox/UserAvatar'
 import type { Match, Team } from '@/lib/types'
 
 const MATCH_SELECT = `
@@ -23,34 +24,59 @@ export default async function SearchPage({ searchParams }: Props) {
 
   let matches: Match[] = []
   let teams: Team[] = []
+  let profiles: {
+    id: string
+    username: string
+    display_name: string | null
+    avatar_url: string | null
+    matches_logged_count: number
+  }[] = []
 
   if (query.length >= 2) {
     const supabase = await createClient()
 
-    const [matchesRes, teamsRes] = await Promise.all([
-      supabase
+    // Chercher les équipes
+    const { data: teamsData } = await supabase
+      .from('teams')
+      .select('*')
+      .ilike('name', `%${query}%`)
+      .order('name')
+      .limit(10)
+    teams = (teamsData ?? []) as Team[]
+
+    // Chercher les matchs via les IDs d'équipes (les filtres sur colonnes jointes ne fonctionnent pas)
+    const teamIds = teams.map((t) => t.id)
+    if (teamIds.length > 0) {
+      const { data: matchesData } = await supabase
         .from('matches')
         .select(MATCH_SELECT)
-        .or(`home_team.name.ilike.%${query}%,away_team.name.ilike.%${query}%`)
+        .or(teamIds.map((id) => `home_team_id.eq.${id},away_team_id.eq.${id}`).join(','))
         .order('kickoff', { ascending: false })
-        .limit(20),
-      supabase.from('teams').select('*').ilike('name', `%${query}%`).order('name').limit(10),
-    ])
+        .limit(20)
+      matches = (matchesData ?? []) as unknown as Match[]
+    }
 
-    matches = (matchesRes.data ?? []) as unknown as Match[]
-    teams = (teamsRes.data ?? []) as Team[]
+    // Chercher les utilisateurs
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url, matches_logged_count')
+      .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+      .order('matches_logged_count', { ascending: false })
+      .limit(10)
+    profiles = profilesData ?? []
   }
+
+  const hasResults = teams.length > 0 || matches.length > 0 || profiles.length > 0
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="font-display mb-6 text-2xl font-bold">Recherche</h1>
 
-      {/* Champ de recherche */}
       <form method="GET" className="mb-8">
         <Input
           name="q"
           defaultValue={query}
-          placeholder="Rechercher un match, une équipe…"
+          placeholder="Rechercher un match, une équipe, un utilisateur…"
           className="text-base"
           autoFocus
         />
@@ -58,6 +84,44 @@ export default async function SearchPage({ searchParams }: Props) {
 
       {query.length >= 2 ? (
         <>
+          {/* Utilisateurs */}
+          {profiles.length > 0 && (
+            <section className="mb-8">
+              <h2 className="text-muted-foreground mb-3 text-sm font-semibold tracking-wider uppercase">
+                Utilisateurs
+              </h2>
+              <div className="flex flex-col gap-1">
+                {profiles.map((profile) => (
+                  <Link
+                    key={profile.id}
+                    href={`/${profile.username}`}
+                    className="border-border bg-card hover:border-primary/40 flex items-center gap-3 rounded-lg border px-4 py-3 transition-colors"
+                  >
+                    {profile.avatar_url ? (
+                      <UserAvatar
+                        url={profile.avatar_url}
+                        name={profile.display_name ?? profile.username}
+                        size={32}
+                      />
+                    ) : (
+                      <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold">
+                        {(profile.display_name ?? profile.username)[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">
+                        {profile.display_name ?? profile.username}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        @{profile.username} · {profile.matches_logged_count} matchs
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Équipes */}
           {teams.length > 0 && (
             <section className="mb-8">
@@ -103,7 +167,7 @@ export default async function SearchPage({ searchParams }: Props) {
             </section>
           )}
 
-          {teams.length === 0 && matches.length === 0 && (
+          {!hasResults && (
             <p className="text-muted-foreground text-sm">
               Aucun résultat pour &quot;{query}&quot;.
             </p>

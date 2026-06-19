@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync-recent",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/sync-upcoming",
+      "schedule": "0 6 * * 1"
+    }
+  ]
+}
